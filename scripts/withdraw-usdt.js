@@ -16,7 +16,7 @@ const DEFAULT_RPC_URL = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_POOL_ADDRESS = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2";
 const DEFAULT_USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const DEFAULT_KEY_FILE = "./private-key.enc.json";
-const DEFAULT_SLEEP_SECONDS = 60;
+const DEFAULT_SLEEP_SECONDS = 10;
 const USDT_DECIMALS = 6;
 
 const POOL_ABI = [
@@ -198,7 +198,6 @@ async function main() {
 
       const receipt = await tx.wait();
       logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
-      return;
     } catch (error) {
       const reason = error?.shortMessage || error?.reason || error?.message || String(error);
       const decodedRevert = decodeRevertData(error);
