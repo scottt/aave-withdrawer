@@ -16,7 +16,7 @@ const DEFAULT_RPC_URL = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_POOL_ADDRESS = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2";
 const DEFAULT_USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const DEFAULT_KEY_FILE = "./private-key.enc.json";
-const DEFAULT_SLEEP_MINUTES = 10;
+const DEFAULT_SLEEP_SECONDS = 60;
 const USDT_DECIMALS = 6;
 
 const POOL_ABI = [
@@ -40,7 +40,7 @@ function printUsage() {
   logger.error("  amount                  USDT amount in display units, e.g. 1234.012345");
   logger.error("");
   logger.error("Options:");
-  logger.error(`  --sleep-minutes <n>     Retry delay in minutes (default: ${DEFAULT_SLEEP_MINUTES})`);
+  logger.error(`  --sleep-seconds <n>     Retry delay in seconds (default: ${DEFAULT_SLEEP_SECONDS})`);
   logger.error(`  --key-file <path>       Encrypted private key file (default: ${DEFAULT_KEY_FILE})`);
   logger.error(`  --rpc-url <url>         Ethereum RPC URL (default: ${DEFAULT_RPC_URL})`);
   logger.error(`  --pool <address>        Pool address (default: ${DEFAULT_POOL_ADDRESS})`);
@@ -130,9 +130,9 @@ async function loadWallet(keyFile, provider) {
 async function main() {
   const { values, positionals } = parseArgs({
     options: {
-      "sleep-minutes": {
+      "sleep-seconds": {
         type: "string",
-        default: String(DEFAULT_SLEEP_MINUTES)
+        default: String(DEFAULT_SLEEP_SECONDS)
       },
       "key-file": {
         type: "string",
@@ -164,8 +164,8 @@ async function main() {
     process.exit(1);
   }
 
-  const sleepMinutes = Number(values["sleep-minutes"]);
-  if (!Number.isFinite(sleepMinutes) || sleepMinutes <= 0) {
+  const sleepSeconds = Number(values["sleep-seconds"]);
+  if (!Number.isFinite(sleepSeconds) || sleepSeconds <= 0) {
     throw new Error("--sleep-minutes must be a positive number.");
   }
 
@@ -179,13 +179,13 @@ async function main() {
   const to = await wallet.getAddress();
   const pool = new ethers.Contract(values.pool, POOL_ABI, wallet);
   const amount = ethers.parseUnits(amountInput, USDT_DECIMALS);
-  const sleepMs = Math.round(sleepMinutes * 60 * 1000);
+  const sleepMs = Math.round(sleepSeconds * 1000);
 
   logger.info(`Sender: ${to}`);
   logger.info(`Pool: ${values.pool}`);
   logger.info(`Asset: ${values.asset}`);
   logger.info(`Amount: ${amountInput} USDT (${amount.toString()} raw units)`);
-  logger.info(values.once ? "Mode: single attempt" : `Retry delay: ${sleepMinutes} minute(s)`);
+  logger.info(values.once ? "Mode: single attempt" : `Retry delay: ${sleepSeconds} second(s)`);
 
   let attempt = 0;
   for (;;) {
@@ -212,7 +212,7 @@ async function main() {
         process.exitCode = 1;
         return;
       }
-      logger.error(`Sleeping for ${sleepMinutes} minute(s) before retrying...`);
+      logger.error(`Sleeping for ${sleepSeconds} second(s) before retrying...`);
       await sleep(sleepMs);
     }
     if (values.once) {

@@ -9,7 +9,7 @@ Defaults:
 
 - Pool: `0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2`
 - Asset: `0xdAC17F958D2ee523a2206206994597C13D831ec7` (USDT)
-- Retry delay: `10` minutes
+- Retry delay: `10` seconds
 
 ## Install
 
@@ -37,8 +37,8 @@ npm run withdraw -- 1000 --once
 ```
 
 ```bash
-# Withdraw 1000 USDT. Runs forever. Retries every 60 minutes
-npm run withdraw -- 1000 --sleep-minutes 60
+# Withdraw 1000 USDT. Runs forever. Retries every 60 seconds
+npm run withdraw -- 1000 --sleep-seconds 60
 ```
 
 The withdraw destination is the address derived from the decrypted private key.
