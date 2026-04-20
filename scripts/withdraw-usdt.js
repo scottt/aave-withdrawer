@@ -18,6 +18,7 @@ const DEFAULT_USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const DEFAULT_KEY_FILE = "./private-key.enc.json";
 const DEFAULT_SLEEP_SECONDS = 10;
 const USDT_DECIMALS = 6;
+const MIN_RETRY_AMOUNT = 1000n
 
 const POOL_ABI = [
   "function withdraw(address asset, uint256 amount, address to) returns (uint256)",
@@ -166,7 +167,7 @@ async function main() {
 
   const sleepSeconds = Number(values["sleep-seconds"]);
   if (!Number.isFinite(sleepSeconds) || sleepSeconds <= 0) {
-    throw new Error("--sleep-minutes must be a positive number.");
+    throw new Error("--sleep-seconds must be a positive number.");
   }
 
   const keyFile = path.resolve(__dirname, "..", values["key-file"]);
@@ -178,46 +179,54 @@ async function main() {
   const wallet = await loadWallet(keyFile, provider);
   const to = await wallet.getAddress();
   const pool = new ethers.Contract(values.pool, POOL_ABI, wallet);
-  const amount = ethers.parseUnits(amountInput, USDT_DECIMALS);
+  const originalAmount = ethers.parseUnits(amountInput, 1);
+  let amount = originalAmount;
   const sleepMs = Math.round(sleepSeconds * 1000);
 
   logger.info(`Sender: ${to}`);
   logger.info(`Pool: ${values.pool}`);
   logger.info(`Asset: ${values.asset}`);
-  logger.info(`Amount: ${amountInput} USDT (${amount.toString()} raw units)`);
   logger.info(values.once ? "Mode: single attempt" : `Retry delay: ${sleepSeconds} second(s)`);
 
   let attempt = 0;
   for (;;) {
     attempt += 1;
-    logger.info(`Attempt ${attempt}: sending Pool.withdraw(...)`);
+    for (amount = originalAmount; amount >= MIN_RETRY_AMOUNT; amount /= 10n) {
+      logger.info(
+        `Attempt ${attempt}: sending Pool.withdraw(...) for ${amount} USDT`
+      );
 
-    try {
-      const tx = await pool.withdraw(values.asset, amount, to);
-      logger.info(`Transaction submitted: ${tx.hash}`);
+      try {
+        const amountOnChain = ethers.parseUnits(amount.toString(), USDT_DECIMALS)
+        const tx = await pool.withdraw(values.asset, amountOnChain, to);
+        logger.info(`Transaction submitted: ${tx.hash}`);
 
-      const receipt = await tx.wait();
-      logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
-    } catch (error) {
-      const reason = error?.shortMessage || error?.reason || error?.message || String(error);
-      const decodedRevert = decodeRevertData(error);
+        const receipt = await tx.wait();
+        logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
+        if (values.once) {
+          return;
+        }
+        break;
+      } catch (error) {
+        const reason = error?.shortMessage || error?.reason || error?.message || String(error);
+        const decodedRevert = decodeRevertData(error);
 
-      logger.error(`Attempt ${attempt} failed: ${reason}`);
-      if (decodedRevert) {
-        logger.error(`Decoded revert data:\n${JSON.stringify(decodedRevert, null, 2)}`);
+        logger.error(`Attempt ${attempt} amount: ${amount} failed: ${reason}`);
+        if (decodedRevert) {
+          logger.error(`Decoded revert data:\n${JSON.stringify(decodedRevert, null, 2)}`);
+        }
+        logger.error(`Raw error:\n${JSON.stringify(error, null, 2)}\n`);
+        logger.error(
+          `estimateGas failed; reducing amount by 10x for the next attempt`
+        );
+        if (values.once) {
+          process.exitCode = 1;
+          return;
+        }
       }
-      logger.error(`Raw error:\n${JSON.stringify(error, null, 2)}\n`);
-      if (values.once) {
-        process.exitCode = 1;
-        return;
-      }
-      logger.error(`Sleeping for ${sleepSeconds} second(s) before retrying...`);
-      await sleep(sleepMs);
     }
-    if (values.once) {
-      process.exitCode = 0;
-      return;
-    }
+    logger.error(`Amount < ${MIN_RETRY_AMOUNT}. Sleeping for ${sleepSeconds} second(s) before retrying...`);
+    await sleep(sleepMs);
   }
 }
 
