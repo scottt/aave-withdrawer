@@ -1,0 +1,21 @@
+{
+  "name": "aave-withdrawer",
+  "version": "1.0.0",
+  "description": "Retrying Aave Pool.withdraw runner with encrypted private key storage",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "encrypt-private-key": "./scripts/encrypt-private-key.js",
+    "withdraw-usdt": "./scripts/withdraw-usdt.js"
+  },
+  "scripts": {
+    "encrypt-key": "node ./scripts/encrypt-private-key.js",
+    "withdraw": "node ./scripts/withdraw-usdt.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0"
+  }
+}

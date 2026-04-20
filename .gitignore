@@ -1,0 +1,6 @@
+node_modules/
+*.enc.json
+attic/
+*.swp
+*.swo
+*~
